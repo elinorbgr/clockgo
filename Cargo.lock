@@ -1,0 +1,12 @@
+[root]
+name = "ClockGo"
+version = "0.0.1"
+dependencies = [
+ "GTP-Rust 0.1.0 (git+https://github.com/vberger/gtp-rust.git#86a3f5fd3f1c1b68a64dbb7d8ab4fa3284fdcf48)",
+]
+
+[[package]]
+name = "GTP-Rust"
+version = "0.1.0"
+source = "git+https://github.com/vberger/gtp-rust.git#86a3f5fd3f1c1b68a64dbb7d8ab4fa3284fdcf48"
+

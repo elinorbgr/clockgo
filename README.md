@@ -1,4 +1,4 @@
-clockgo
+ClockGo
 =======
 
-An attempt to create a bot playing GO in Rust.
+An attempt to create a bot playing Go in Rust.

@@ -1,0 +1,9 @@
+[package]
+
+name = "ClockGo"
+version = "0.0.1"
+authors = ["Victor Berger <victor.berger@m4x.org>"]
+
+[dependencies.GTP-Rust]
+
+git = "https://github.com/vberger/gtp-rust.git"
