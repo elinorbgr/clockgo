@@ -56,9 +56,9 @@ impl Board {
     pub fn clear(&mut self) {
         self.history.clear();
         self.groups.clear();
-        for &mut column in self.stones.mut_iter() {
-            for mut vrtx in column.mut_iter() {
-                *vrtx = Empty;
+        for i in range(0, 25) {
+            for j in range(0, 25) {
+                self.stones[i][j] = Empty;
             }
         }
     }
