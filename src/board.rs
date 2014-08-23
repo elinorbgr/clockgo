@@ -73,24 +73,32 @@ impl Board {
         }
     }
 
+    fn loop_over_neighbours(x:uint, y:uint, size:uint, func: |uint, uint|  -> ()) {
+        if x > 1 {
+            func(x-1, y);
+        }
+        if y > 1 {
+            func(x, y-1);
+        }
+        if x < size - 1 {
+            func(x+1, y);
+        }
+        if y < size - 1 {
+            func(x, y+1);
+        }
+    }
+
     pub fn liberties_of(&mut self, x: uint, y: uint) -> Vec<(uint,uint)> {
         match self.stones[x-1][y-1] {
             Empty => Vec::new(),
             Stone(_, gid) => {
                 let mut liberties = HashSet::new();
                 for &(v, w) in self.groups[gid].iter() {
-                    if v > 1 && self.stones[v-2][w-1] == Empty {
-                        liberties.insert((v-1,w));
-                    }
-                    if w > 1 && self.stones[v-1][w-2] == Empty {
-                        liberties.insert((v,w-1));
-                    }
-                    if v < self.size - 1 && self.stones[v][w-1] == Empty {
-                        liberties.insert((v+1,w));
-                    }
-                    if w < self.size - 1 && self.stones[v-1][w] == Empty {
-                        liberties.insert((v,w+1));
-                    }
+                    Board::loop_over_neighbours(v, w, self.size, |a, b| {
+                        if self.stones[a-1][b-1] == Empty {
+                            liberties.insert((a,b));
+                        }
+                    });
                 }
                 FromIterator::from_iter(liberties.move_iter())
             }
@@ -189,45 +197,24 @@ impl Board {
             self.stones[x-1][y-1] = Stone(player, gid);
             // are we killing enemies_stones ?
             let mut killed = Vec::new();
-            if x > 1 { match self.stones[x-2][y-1] {
-                Stone(col, _) if col != player => { killed = killed.append(self.remove_if_dead(x-1, y).as_slice());}
-                _ => {}
-            }};
-            if y > 1 { match self.stones[x-1][y-2] {
-                Stone(col, _) if col != player => { killed = killed.append(self.remove_if_dead(x, y-1).as_slice());}
-                _ => {}
-            }};
-            if x < self.size -1 { match self.stones[x][y-1] {
-                Stone(col, _) if col != player => { killed = killed.append(self.remove_if_dead(x+1, y).as_slice());}
-                _ => {}
-            }};
-            if x < self.size -1 { match self.stones[x-1][y] {
-                Stone(col, _) if col != player => { killed = killed.append(self.remove_if_dead(x, y+1).as_slice());}
-                _ => {}
-            }};
+            Board::loop_over_neighbours(x, y, self.size, |a, b| {
+                match self.stones[a-1][b-1] {
+                    Stone(col, _) if col != player => {
+                        killed.push_all(self.remove_if_dead(a,b).as_slice());
+                    },
+                    _ => {}
+                }
+            });
             if killed.len() == 0 {
                 // the move might be invalid, we must be more careful
                 let mut alive = false;
-                alive = alive || if x > 1 { match self.stones[x-2][y-1] {
+                Board::loop_over_neighbours(x, y, self.size, |a, b| {
+                    alive = alive || match self.stones[a-1][b-1] {
                     Empty => true,
-                    Stone(col, _) if col == player => self.liberties_of(x-1,y).len() > 0,
+                    Stone(col, _) if col == player => self.liberties_of(a,b).len() > 0,
                     _ => false
-                    }} else { false };
-                alive = alive || if y > 1 { match self.stones[x-1][y-2] {
-                    Empty => true,
-                    Stone(col, _) if col == player => self.liberties_of(x,y-1).len() > 0,
-                    _ => false
-                    }} else { false };
-                alive = alive || if x < self.size - 1 { match self.stones[x][y-1] {
-                    Empty => true,
-                    Stone(col, _) if col == player => self.liberties_of(x+1,y).len() > 0,
-                    _ => false
-                    }} else { false };
-                alive = alive || if y < self.size -1 { match self.stones[x-1][y] {
-                    Empty => true,
-                    Stone(col, _) if col == player => self.liberties_of(x,y+1).len() > 0,
-                    _ => false
-                    }} else { false };
+                    }
+                });
                 if !alive {
                     // we should not have played this
                     self.stones[x-1][y-1] = Empty;
@@ -237,22 +224,12 @@ impl Board {
             // okay, we live, let's clean up
             self.groups.insert(gid, HashSet::new());
             self.groups.find_mut(&gid).unwrap().insert((x,y));
-            if x > 1 { match self.stones[x-2][y-1] {
-                Stone(col, _) if col == player => { self.fuse_groups(x,y,x-1,y); }
-                _ => {}
-            }};
-            if y > 1 { match self.stones[x-1][y-2] {
-                Stone(col, _) if col == player => { self.fuse_groups(x,y,x,y-1); }
-                _ => {}
-            }};
-            if x < self.size -1 { match self.stones[x][y-1] {
-                Stone(col, _) if col == player => { self.fuse_groups(x,y,x+1,y); }
-                _ => {}
-            }};
-            if x < self.size -1 { match self.stones[x-1][y] {
-                Stone(col, _) if col == player => { self.fuse_groups(x,y,x,y+1); }
-                _ => {}
-            }};
+            Board::loop_over_neighbours(x, y, self.size, |a, b| {
+                match self.stones[a-1][b-1] {
+                    Stone(col, _) if col == player => { self.fuse_groups(x,y,a,b); }
+                    _ => {}
+                }
+            });
             match player {
                 White => { self.black_dead += killed.len(); }
                 Black => { self.white_dead += killed.len(); }
