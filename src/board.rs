@@ -1,6 +1,8 @@
 use std::collections::{DList, HashSet, SmallIntMap};
 use std::iter::FromIterator;
 
+static board_maxsize : uint = 25;
+
 #[deriving(PartialEq)]
 pub enum Colour {
     Black,
@@ -32,7 +34,7 @@ enum Intersection {
 
 #[allow(dead_code)]
 pub struct Board {
-    stones: [[Intersection, ..25], ..25],
+    stones: [[Intersection, ..board_maxsize], ..board_maxsize],
     history: DList<Move>,
     groups: SmallIntMap< HashSet<(uint, uint)> >,
     size: uint,
@@ -44,7 +46,7 @@ impl Board {
 
     pub fn new() -> Board {
         Board {
-            stones: [[Empty, ..25], ..25],
+            stones: [[Empty, ..board_maxsize], ..board_maxsize],
             history: DList::new(),
             groups: SmallIntMap::new(),
             size: 19,
@@ -56,15 +58,15 @@ impl Board {
     pub fn clear(&mut self) {
         self.history.clear();
         self.groups.clear();
-        for i in range(0, 25) {
-            for j in range(0, 25) {
+        for i in range(0, board_maxsize) {
+            for j in range(0, board_maxsize) {
                 self.stones[i][j] = Empty;
             }
         }
     }
 
     pub fn resize(&mut self, newsize: uint) -> bool {
-        if newsize > 0 && newsize <= 25 {
+        if newsize > 0 && newsize <= board_maxsize {
             self.clear();
             self.size = newsize;
             true
