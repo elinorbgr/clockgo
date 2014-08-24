@@ -39,7 +39,8 @@ pub struct Board {
     groups: SmallIntMap< HashSet<(uint, uint)> >,
     size: uint,
     white_dead: uint,
-    black_dead: uint
+    black_dead: uint,
+    current_ko: (uint, uint)
 }
 
 impl Board {
@@ -51,7 +52,8 @@ impl Board {
             groups: SmallIntMap::new(),
             size: 19,
             white_dead: 0,
-            black_dead: 0
+            black_dead: 0,
+            current_ko: (0, 0)
         }
     }
 
@@ -245,7 +247,7 @@ impl Board {
     }
 
     pub fn play(&mut self, player: Colour, x: uint, y: uint) -> bool {
-        if self.stones[x-1][y-1] != Empty {
+        if self.stones[x-1][y-1] != Empty || (x, y) == self.current_ko {
             // move is not possible
             false
         } else {
@@ -289,6 +291,11 @@ impl Board {
             match player {
                 White => { self.black_dead += killed.len(); }
                 Black => { self.white_dead += killed.len(); }
+            }
+            if killed.len() == 1 && self.liberties_of(x, y).len() == 1 {
+                self.current_ko = killed[0];
+            } else {
+                self.current_ko = (0, 0);
             }
             self.history.push(Move{
                 player: player,
