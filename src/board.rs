@@ -122,26 +122,80 @@ impl Board {
         }
     }
 
-    /*pub fn undo(&mut self) -> bool {
+    fn split_group(&mut self, gid: uint) {
+        if !self.groups.contains_key(&gid) {
+            return;
+        }
+        while !self.groups[gid].is_empty() {
+            // retrieve a random item
+            let &(x, y) = self.groups[gid].iter().next().unwrap();
+            let newgid = self.next_gid();
+            self.groups.insert(newgid, HashSet::new());
+            self.stones[x-1][y-1] = match self.stones[x-1][y-1] {
+                Stone(col, id) if id == gid => Stone(col, newgid),
+                // if we reach this point, it means the internal data
+                // was inconsistent
+                _ => unreachable!()
+            };
+            self.groups.find_mut(&gid).unwrap().remove(&(x, y));
+            self.groups.find_mut(&newgid).unwrap().insert((x, y));
+            // let's find all connected stones
+            let mut to_loop = DList::new();
+            Board::loop_over_neighbours(x, y, self.size, |a, b| {
+                if self.groups[gid].contains(&(a,b)) {
+                    to_loop.push((a,b));
+                    self.groups.find_mut(&gid).unwrap().remove(&(a,b));
+                }
+            });
+            while !to_loop.is_empty() {
+                let (v, w) = to_loop.pop().unwrap();
+                self.stones[v-1][w-1] = match self.stones[v-1][w-1] {
+                    Stone(col, id) if id == gid => Stone(col, newgid),
+                    _ => unreachable!() // same here
+                };
+                self.groups.find_mut(&newgid).unwrap().insert((v, w));
+                Board::loop_over_neighbours(v, w, self.size, |a, b| {
+                    if self.groups[gid].contains(&(a,b)) {
+                        to_loop.push((a,b));
+                        self.groups.find_mut(&gid).unwrap().remove(&(a,b));
+                    }
+                });
+            }
+        }
+        self.groups.remove(&gid);
+    }
+
+    pub fn undo(&mut self) -> bool {
         match self.history.pop() {
             None => false,
             Some(Move{player: player, move: move, removed: removed}) => {
                 match move {
                     Pass => true,
                     Put(x, y) => {
+                        let oldgid = match self.stones[x-1][y-1] {
+                            Stone(_,id) => id,
+                            _ => unreachable!() // how could there be no stone ??
+                        };
+                        self.split_group(oldgid);
                         self.stones[x-1][y-1] = Empty;
+                        // restore removed stones
+                        let tmpgid = self.next_gid();
+                        let removedcolor = match player {
+                            White => Black,
+                            Black => White
+                        };
+                        self.groups.insert(tmpgid, HashSet::new());
                         for &(v,w) in removed.iter() {
-                            self.stones[v-1][w-1] = Stone(match player {
-                                White => Black,
-                                Black => White
-                            }, self.next_gid());
+                            self.stones[v-1][w-1] = Stone(removedcolor, tmpgid);
+                            self.groups.find_mut(&tmpgid).unwrap().insert((v, w));
                         }
+                        self.split_group(tmpgid);
                         true
                     }
                 }
             }
         }
-    }*/
+    }
 
     fn remove_if_dead(&mut self, x: uint, y: uint) -> Vec<(uint,uint)> {
         match self.stones[x-1][y-1] {
@@ -250,7 +304,7 @@ impl Board {
         let mut white_stones = Vec::new();
         for i in range(0, self.size) {
             for j in range(0, self.size) {
-                match(self.stones[i][j]) {
+                match self.stones[i][j] {
                     Stone(Black, _) => { black_stones.push((i,j)); },
                     Stone(White, _) => { white_stones.push((i,j)); },
                     Empty => {}

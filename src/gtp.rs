@@ -60,6 +60,14 @@ impl api::GoBot for ClockGoBot{
         fail!("Not implemented.")
     }
 
+    fn gtp_undo(&mut self) -> Result<(), api::GTPError> {
+        if self.goban.undo() {
+            Ok(())
+        } else {
+            Err(api::CannotUndo)
+        }
+    }
+
     fn gtp_showboard(&self) -> Result<(uint, Vec<api::Vertex>, Vec<api::Vertex>, uint, uint), api::GTPError> {
         let (size, bst, wst, bd, wd) = self.goban.list_stones();
         let mut black_st = Vec::with_capacity(bst.len());
