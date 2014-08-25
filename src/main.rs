@@ -1,8 +1,8 @@
 extern crate gtprust;
 
-mod board;
-mod gtp;
-mod statics;
+pub mod board;
+pub mod gtp;
+pub mod statics;
 
 fn main() {
     let mut bot = gtp::ClockGoBot::new();

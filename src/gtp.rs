@@ -4,13 +4,15 @@ use board;
 use statics;
 
 pub struct ClockGoBot {
-    goban: board::Board
+    goban: board::Board,
+    komi: f32,
 }
 
 impl ClockGoBot {
     pub fn new() -> ClockGoBot {
         ClockGoBot {
-            goban: board::Board::new()
+            goban: board::Board::new(),
+            komi: 5.5f32
         }
     }
 }
@@ -30,7 +32,7 @@ impl api::GoBot for ClockGoBot{
     }
 
     fn gtp_komi(&mut self, komi: f32) {
-        fail!("Not implemented.")
+        self.komi = komi;
     }
 
     fn gtp_boardsize(&mut self, size: uint) -> Result<(), api::GTPError> {
@@ -52,7 +54,7 @@ impl api::GoBot for ClockGoBot{
                         false => Err(api::InvalidMove)
                     }
                 },
-            api::ColouredMove{player: col, move: api::Resign} => {Ok(())}
+            api::ColouredMove{player: _, move: api::Resign} => {Ok(())}
         }
     }
 
@@ -69,15 +71,24 @@ impl api::GoBot for ClockGoBot{
     }
 
     fn gtp_showboard(&self) -> Result<(uint, Vec<api::Vertex>, Vec<api::Vertex>, uint, uint), api::GTPError> {
-        let (size, bst, wst, bd, wd) = self.goban.list_stones();
-        let mut black_st = Vec::with_capacity(bst.len());
-        for &(x,y) in bst.iter() {
-            black_st.push(api::Vertex::from_coords((x+1) as u8, (y+1) as u8).unwrap());
+        let mut black_stones = Vec::new();
+        let mut white_stones = Vec::new();
+        let &stones = self.goban.get_board();
+        let size = self.goban.get_size();
+        for i in range(0, size) {
+            for j in range(0, size) {
+                match stones[i][j] {
+                    board::Stone(board::Black, _) => {
+                        black_stones.push(api::Vertex::from_coords((i+1) as u8, (j+1) as u8).unwrap());
+                    },
+                    board::Stone(board::White, _) => {
+                        white_stones.push(api::Vertex::from_coords((i+1) as u8, (j+1) as u8).unwrap());
+                    },
+                    board::Empty => {}
+                }
+            }
         }
-        let mut white_st = Vec::with_capacity(wst.len());
-        for &(x,y) in wst.iter() {
-            white_st.push(api::Vertex::from_coords((x+1) as u8, (y+1) as u8).unwrap());
-        }
-        Ok((size, black_st, white_st, bd, wd))
+        let (bd, wd) = self.goban.get_deads();
+        Ok((size, black_stones, white_stones, bd, wd))
     }
 }

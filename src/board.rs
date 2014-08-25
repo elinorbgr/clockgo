@@ -11,12 +11,12 @@ pub enum Colour {
 
 // structs needed for history
 
-enum Vertex {
+pub enum Vertex {
     Put(uint, uint),
     Pass
 }
 
-struct Move {
+pub struct Move {
     pub player: Colour,
     pub move: Vertex,
     pub removed: Vec<(uint, uint)>
@@ -25,13 +25,16 @@ struct Move {
 // structs needed for board representation
 
 #[deriving(PartialEq)]
-enum Intersection {
+pub enum Intersection {
     Stone(Colour, uint),
     Empty
 }
 
 // board itself
 
+/// This struct represents a board. It stores information about
+/// groups to automatically remove dead stones, allow undoing
+/// and detect simple kos.
 #[allow(dead_code)]
 pub struct Board {
     stones: [[Intersection, ..board_maxsize], ..board_maxsize],
@@ -45,6 +48,7 @@ pub struct Board {
 
 impl Board {
 
+    /// Creates a new Board.
     pub fn new() -> Board {
         Board {
             stones: [[Empty, ..board_maxsize], ..board_maxsize],
@@ -57,6 +61,42 @@ impl Board {
         }
     }
 
+    /// Allows read-only access to the board
+    pub fn get_board<'a>(&'a self) -> &'a [[Intersection, ..board_maxsize], ..board_maxsize] {
+        &self.stones
+    }
+
+    /// Allows read-only access to the history
+    pub fn get_history<'a>(&'a self) -> &'a DList<Move> {
+        &self.history
+    }
+
+    /// Allow read-only access to the groups data
+    pub fn get_groups<'a>(&'a self) -> &'a SmallIntMap< HashSet<(uint, uint)> > {
+        &self.groups
+    }
+
+    /// Board current size
+    pub fn get_size(&self) -> uint {
+        self.size
+    }
+
+    /// Current dead stones (black, white)
+    pub fn get_deads(&self) -> (uint, uint) {
+        (self.black_dead, self.white_dead)
+    }
+
+    /// Option tothe coordinates of current ko.
+    pub fn get_current_ko(&self) -> Option<(uint, uint)> {
+        if self.current_ko == (0, 0) {
+            None
+        } else {
+            Some(self.current_ko)
+        }
+    }
+
+    /// Resets the board and clear the history. The board is then
+    /// ready for a new game.
     pub fn clear(&mut self) {
         self.history.clear();
         self.groups.clear();
@@ -67,6 +107,7 @@ impl Board {
         }
     }
 
+    /// Change the size of the board, must be between 1 and 25 inclusive.
     pub fn resize(&mut self, newsize: uint) -> bool {
         if newsize > 0 && newsize <= board_maxsize {
             self.clear();
@@ -77,6 +118,8 @@ impl Board {
         }
     }
 
+    /// Returns a copy of the board without history, can thus be used to think,
+    /// experiment and prepare the next move.
     pub fn clone_without_history(&self) -> Board {
         Board {
             stones: {
@@ -111,6 +154,8 @@ impl Board {
         }
     }
 
+    /// Returns a vec of the liberties of the groups containing given stone.
+    /// Will return empty vec is there is no stone.
     pub fn liberties_of(&mut self, x: uint, y: uint) -> Vec<(uint,uint)> {
         match self.stones[x-1][y-1] {
             Empty => Vec::new(),
@@ -186,6 +231,7 @@ impl Board {
         self.groups.remove(&gid);
     }
 
+    /// Undo the last move.
     pub fn undo(&mut self) -> bool {
         match self.history.pop() {
             None => false,
@@ -257,6 +303,7 @@ impl Board {
         self.groups.remove(&gid2);
     }
 
+    /// The chosen play passes his turn
     pub fn pass(&mut self, player: Colour) {
         self.history.push(Move{
                 player: player,
@@ -265,6 +312,9 @@ impl Board {
             });
     }
 
+    /// Plays the given move, will return false if the move cannot be played
+    /// (either because there is already a stone, or the stone would be dead,
+    /// or it is a simple ko).
     pub fn play(&mut self, player: Colour, x: uint, y: uint) -> bool {
         if self.stones[x-1][y-1] != Empty || (x, y) == self.current_ko {
             // move is not possible
@@ -323,20 +373,5 @@ impl Board {
             });
             true
         }
-    }
-
-    pub fn list_stones(&self) -> (uint, Vec<(uint, uint)>, Vec<(uint, uint)>, uint, uint) {
-        let mut black_stones = Vec::new();
-        let mut white_stones = Vec::new();
-        for i in range(0, self.size) {
-            for j in range(0, self.size) {
-                match self.stones[i][j] {
-                    Stone(Black, _) => { black_stones.push((i,j)); },
-                    Stone(White, _) => { white_stones.push((i,j)); },
-                    Empty => {}
-                }
-            }
-        }
-        (self.size, black_stones, white_stones, self.black_dead, self.white_dead)
     }
 }
