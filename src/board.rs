@@ -1,4 +1,4 @@
-use std::collections::{DList, HashSet, SmallIntMap};
+use std::collections::{DList, HashSet, SmallIntMap, Deque};
 use std::iter::FromIterator;
 
 static board_maxsize : uint = 25;
@@ -156,7 +156,7 @@ impl Board {
 
     /// Returns a vec of the liberties of the groups containing given stone.
     /// Will return empty vec is there is no stone.
-    pub fn liberties_of(&mut self, x: uint, y: uint) -> Vec<(uint,uint)> {
+    pub fn liberties_of(&self, x: uint, y: uint) -> Vec<(uint,uint)> {
         match self.stones[x-1][y-1] {
             Empty => Vec::new(),
             Stone(_, gid) => {
@@ -257,6 +257,17 @@ impl Board {
                             self.groups.find_mut(&tmpgid).unwrap().insert((v, w));
                         }
                         self.split_group(tmpgid);
+                        // check if last move was a ko
+                        match self.history.back() {
+                            Some(&Move{player: _, move: Put(v, w), removed: ref removed}) => {
+                                if removed.len() == 1 && self.liberties_of(v, w).len() == 1 {
+                                    self.current_ko = removed[0];
+                                } else {
+                                    self.current_ko = (0, 0);
+                                }
+                            }
+                            _ => {}
+                        }
                         true
                     }
                 }
