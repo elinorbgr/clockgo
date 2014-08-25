@@ -86,7 +86,7 @@ impl Board {
         (self.black_dead, self.white_dead)
     }
 
-    /// Option tothe coordinates of current ko.
+    /// Option to the coordinates of current ko.
     pub fn get_current_ko(&self) -> Option<(uint, uint)> {
         if self.current_ko == (0, 0) {
             None

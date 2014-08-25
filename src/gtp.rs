@@ -1,6 +1,7 @@
 use gtprust::api;
-use board;
 
+use board;
+use randomplay;
 use statics;
 
 pub struct ClockGoBot {
@@ -59,7 +60,12 @@ impl api::GoBot for ClockGoBot{
     }
 
     fn gtp_genmove(&mut self, player: api::Colour) -> api::Move {
-        fail!("Not implemented.")
+        match randomplay::genmove(&mut self.goban,
+                match player { api::Black => board::Black, api::White => board::White }
+            ) {
+            board::Put(x, y) => api::Stone(api::Vertex::from_coords(x as u8, y as u8).unwrap()),
+            board::Pass => api::Pass
+        }
     }
 
     fn gtp_undo(&mut self) -> Result<(), api::GTPError> {
