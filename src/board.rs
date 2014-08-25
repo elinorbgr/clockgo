@@ -77,6 +77,25 @@ impl Board {
         }
     }
 
+    pub fn clone_without_history(&self) -> Board {
+        Board {
+            stones: {
+                let mut array = [[Empty, ..board_maxsize], ..board_maxsize];
+                for i in range(0, self.size) {
+                    for j in range(0, self.size) {
+                        array[i][j] = self.stones[i][j];
+                    }
+                }
+            array },
+            history: DList::new(),
+            groups: self.groups.clone(),
+            size: self.size,
+            white_dead: self.white_dead,
+            black_dead: self.black_dead,
+            current_ko: self.current_ko
+        }
+    }
+
     fn loop_over_neighbours(x:uint, y:uint, size:uint, func: |uint, uint|  -> ()) {
         if x > 1 {
             func(x-1, y);
