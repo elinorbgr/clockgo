@@ -344,7 +344,7 @@ impl Board {
                         Board::loop_over_neighbours(v, w, self.size, |a, b| {
                             match self.stones[a-1][b-1] {
                                 Stone(_, grpid) if grpid != gid => {
-                                    self.groups.find_mut(&grpid).unwrap().add_liberty(a,b);
+                                    self.groups.find_mut(&grpid).unwrap().add_liberty(v,w);
                                 },
                                 _ => {}
                             }
@@ -361,7 +361,7 @@ impl Board {
     fn fuse_groups(&mut self, x1: uint, y1: uint, x2: uint, y2: uint) {
         // gid1 shall be the biggest group
         let (gid1, gid2) = match (self.stones[x1-1][y1-1], self.stones[x2-1][y2-1]) {
-            (Stone(_, g1), Stone(_, g2)) if g1 != g2 => {
+            (Stone(col1, g1), Stone(col2, g2)) if g1 != g2  && col1 == col2 => {
                 if self.groups[g1].stone_count() > self.groups[g2].stone_count() {
                     (g1, g2)
                 } else {
@@ -428,6 +428,15 @@ impl Board {
                     // we should not have played this
                     self.stones[x-1][y-1] = Empty;
                     self.groups.remove(&gid);
+                    // restore liberties
+                    Board::loop_over_neighbours(x, y, self.size, |a, b| {
+                        match self.stones[a-1][b-1] {
+                            Stone(col, tmpid) if col != player => {
+                                self.groups.find_mut(&tmpid).unwrap().add_liberty(x,y);
+                            },
+                            _ => {}
+                        }
+                    });
                     return false;
                 }
             }
