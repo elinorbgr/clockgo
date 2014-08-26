@@ -206,10 +206,10 @@ impl Board {
         if y > 1 {
             func(x, y-1);
         }
-        if x < size - 1 {
+        if x < size {
             func(x+1, y);
         }
-        if y < size - 1 {
+        if y < size {
             func(x, y+1);
         }
     }
