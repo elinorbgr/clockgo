@@ -16,6 +16,22 @@ impl ClockGoBot {
             komi: 5.5f32
         }
     }
+
+    fn list_groups(&self) -> String {
+        let mut output = String::from_str("Groups:\n");
+        for (gid, ref grp) in self.goban.get_groups().iter() {
+            output = output.append(format!("{} :: stones : ", gid).as_slice());
+            for &(x, y) in grp.get_stones() {
+                output = output.append(format!("({},{}) ", x, y).as_slice());
+            }
+            output = output.append("liberties : ");
+            for &(x, y) in grp.get_liberties() {
+                output = output.append(format!("({},{}) ", x, y).as_slice());
+            }
+            output = output.append("\n");
+        }
+        output
+    }
 }
 
 impl api::GoBot for ClockGoBot{
@@ -96,5 +112,23 @@ impl api::GoBot for ClockGoBot{
         }
         let (bd, wd) = self.goban.get_deads();
         Ok((size, black_stones, white_stones, bd, wd))
+    }
+
+    #[allow(unused_variable)]
+    fn gtp_custom_command(&mut self, command: &str, args: &str) -> (bool, String) {
+        if command == "cg_list_groups" {
+            (true, self.list_groups())
+        } else {
+            (false, String::from_str("unknown command"))
+        }
+
+    }
+
+    fn gtp_known_custom_command(&self, command: &str) -> bool {
+        command == "cg_list_groups"
+    }
+
+    fn gtp_list_custom_commands(&self) -> Vec<String> {
+        vec!(String::from_str("cg_list_groups"))
     }
 }

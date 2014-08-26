@@ -229,14 +229,14 @@ impl Board {
         }
     }
 
-    fn split_group(&mut self, gid: uint) {
-        if !self.groups.contains_key(&gid) {
-            return;
-        }
-        let mut stones: TreeSet<(uint,uint)> = self.groups.pop(&gid).unwrap().dismantle();
-        while !stones.is_empty() {
+    fn split_group(&mut self, gid: uint, unput: (uint,uint)) {
+        self.stones[unput.val0()-1][unput.val1()-1] = Empty;
+        let mut oldstones: TreeSet<(uint,uint)> = self.groups.pop(&gid).unwrap().dismantle();
+        oldstones.remove(&unput);
+        while !oldstones.is_empty() {
             // retrieve a random item
-            let &(x, y) = stones.iter().next().unwrap();
+            let &(x, y) = oldstones.iter().next().unwrap();
+            oldstones.remove(&(x,y));
             let newgid = self.next_gid();
             self.groups.insert(newgid, Group::new());
             self.stones[x-1][y-1] = match self.stones[x-1][y-1] {
@@ -252,9 +252,9 @@ impl Board {
             // let's find all connected stones,handling liberties
             let mut to_loop = DList::new();
             Board::loop_over_neighbours(x, y, self.size, |a, b| {
-                if stones.contains(&(a,b)) {
+                if oldstones.contains(&(a,b)) {
                     to_loop.push((a,b));
-                    stones.remove(&(a,b));
+                    oldstones.remove(&(a,b));
                 } else {
                     if mystones[a-1][b-1] == Empty {
                         newgroup.add_liberty(a,b);
@@ -269,9 +269,9 @@ impl Board {
                 };
                 newgroup.add_stone(v, w);
                 Board::loop_over_neighbours(v, w, self.size, |a, b| {
-                    if stones.contains(&(a,b)) {
+                    if oldstones.contains(&(a,b)) {
                         to_loop.push((a,b));
-                        stones.remove(&(a,b));
+                        oldstones.remove(&(a,b));
                     } else {
                         if mystones[a-1][b-1] == Empty {
                             newgroup.add_liberty(a,b);
@@ -294,19 +294,19 @@ impl Board {
                             Stone(_,id) => id,
                             _ => unreachable!() // how could there be no stone ??
                         };
-                        self.stones[x-1][y-1] = Empty;
-                        self.split_group(oldgid);
+                        self.split_group(oldgid, (x,y));
                         // restore removed stones
                         let removedcolor = match player {
                             White => Black,
                             Black => White
                         };
-                        for grp in removed.move_iter() {
+                        for mut grp in removed.move_iter() {
                             let newgid = self.next_gid();
                             for &(v,w) in grp.get_stones()
                             {
                                 self.stones[v-1][w-1] = Stone(removedcolor, newgid);
                             }
+                            grp.add_liberty(x, y);
                             self.groups.insert(newgid, grp);
                         }
                         // check if last move was a ko
@@ -331,13 +331,29 @@ impl Board {
         }
     }
 
-    fn remove_if_dead(&mut self, x: uint, y: uint) -> Option<Group> {
+    fn remove_liberty(&mut self, x: uint, y: uint, kx: uint, ky:uint) -> Option<Group> {
         match self.stones[x-1][y-1] {
             Empty => None,
-            Stone(_, gid) => if self.groups[gid].is_dead() {
-                self.groups.pop(&gid)
-            } else {
-                None
+            Stone(_, gid) => {
+                self.groups.find_mut(&gid).unwrap().remove_liberty(kx, ky);
+                if self.groups[gid].is_dead() {
+                    let grp = self.groups.pop(&gid).unwrap();
+                    // add liberties to neighbors
+                    for &(v, w) in grp.get_stones() {
+                        self.stones[v-1][w-1] = Empty;
+                        Board::loop_over_neighbours(v, w, self.size, |a, b| {
+                            match self.stones[a-1][b-1] {
+                                Stone(_, grpid) if grpid != gid => {
+                                    self.groups.find_mut(&grpid).unwrap().add_liberty(a,b);
+                                },
+                                _ => {}
+                            }
+                        });
+                    }
+                    Some(grp)
+                } else {
+                    None
+                }
             }
         }
     }
@@ -383,12 +399,14 @@ impl Board {
         } else {
             let gid = self.next_gid();
             self.stones[x-1][y-1] = Stone(player, gid);
+            self.groups.insert(gid, Group::new());
+            self.groups.find_mut(&gid).unwrap().add_stone(x,y);
             // are we killing enemies_stones ?
             let mut killed = Vec::new();
             Board::loop_over_neighbours(x, y, self.size, |a, b| {
                 match self.stones[a-1][b-1] {
                     Stone(col, _) if col != player => {
-                        match self.remove_if_dead(a,b) {
+                        match self.remove_liberty(a,b,x,y) {
                             Some(grp) => { killed.push(grp); },
                             _ =>{}
                         }
@@ -409,16 +427,15 @@ impl Board {
                 if !alive {
                     // we should not have played this
                     self.stones[x-1][y-1] = Empty;
+                    self.groups.remove(&gid);
                     return false;
                 }
             }
             // okay, we live, let's clean up
-            self.groups.insert(gid, Group::new());
-            self.groups.find_mut(&gid).unwrap().add_stone(x,y);
-            // doesthis stone have liberties ?
+            // does this stone have liberties ?
             Board::loop_over_neighbours(x, y, self.size, |a, b| {
                 match self.stones[a-1][b-1] {
-                    Empty => { self.groups.find_mut(&gid).unwrap().add_liberty(x,y); }
+                    Empty => { self.groups.find_mut(&gid).unwrap().add_liberty(a,b); }
                     _ => {}
                 }
             });
